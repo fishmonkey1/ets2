@@ -1,6 +1,6 @@
 from grabscreen import grab_screen
 import GameWindow
-from lanes import lanes
+import lanes
 import cv2
 import numpy as np
 import keys as k
@@ -21,13 +21,18 @@ def lanes_roi(image, vertices):
     masked = cv2.bitwise_and(image, mask)
     return masked
 
-def draw_lines(image, lines):
-    try:
-        for coords in lines:
-            #coords = line[0]
-            cv2.line(image, (coords[0], coords[1]), (coords[2], coords[3]), [255,0,0], 2)
-    except:
-        pass
+def draw_lines(image, lines, color):
+    coords = lines
+    #         #coords = line[0]
+    cv2.line(image, (coords[0], coords[1]), (coords[2], coords[3]), color, 1)
+    
+    # try:
+    #     for coords in lines:
+    #         #coords = line[0]
+    #         cv2.line(image, (coords[0], coords[1]), (coords[2], coords[3]), [255,0,0], 5)
+    # except:
+    #     print("uhhhh")
+    #     pass
 
 def process_frame(frame):
     #Lanes
@@ -48,9 +53,23 @@ def process_frame(frame):
 
     processed_lane_image = cv2.cvtColor(processed_lane_image, cv2.COLOR_GRAY2BGR) #need to color to see lines
 
-    fuck = lanes(found_lines)
 
-    draw_lines(frame, fuck)
+
+    # fuck = lanes(found_lines)
+    # print(f"fuck: {fuck}")
+    # print()
+
+    slopes = lanes.get_slopes(found_lines, True)
+    for pos_neg_disq in slopes.keys():
+        if pos_neg_disq == 'pos':
+            color = [255,0,0]
+        if pos_neg_disq == 'neg':
+            color = [0,255,0]
+        if pos_neg_disq == 'disqualified':
+            color = [0,0,255]
+        for idx in slopes[pos_neg_disq]:
+
+            draw_lines(frame, slopes[pos_neg_disq][idx][2], color)
 
   
     return frame
@@ -101,7 +120,7 @@ if runtime == "VIDEO":
         cv2.imshow("lines", screen_with_lines)   
         cv2.moveWindow("lines",875,0)
         
-        if cv2.waitKey(1) == ord('q'): #press q to quit
+        if cv2.waitKey(100) == ord('q'): #press q to quit
             break
 
 # uncomment if video output wanted
