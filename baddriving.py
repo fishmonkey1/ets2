@@ -6,25 +6,55 @@ import numpy as np
 import keys as k
 import time
 
+import pprint
+pp = pprint.PrettyPrinter(depth=6)
+
 
 keys = k.Keys()
 
 def pathing(minimap):
     pass
 
-def mirrors_roi(mirrors):
+def mirrors_analysis(l_mirror_vertices, r_mirror_vertices):
     pass
 
-def lanes_roi(image, vertices):
+def roi(image, road_vertices,l_mirror_vertices,r_mirror_vertices):
+
+    #empty array of zeros (empty pixels) in same shape as frame
     mask = np.zeros_like(image)
-    cv2.fillPoly(mask, vertices, 255)
-    masked = cv2.bitwise_and(image, mask)
-    return masked
+    #create polygon shape (mask)
+    cv2.fillPoly(mask, road_vertices, 255)
+    # show only area that is mask
+    masked_road = cv2.bitwise_and(image, mask)
+
+    mask = np.zeros_like(image)
+    cv2.fillPoly(mask, l_mirror_vertices, 255)
+    masked_L_mirror = cv2.bitwise_and(image, mask)
+
+    mask = np.zeros_like(image)
+    cv2.fillPoly(mask, r_mirror_vertices, 255)
+    masked_R_mirror = cv2.bitwise_and(image, mask)
+    
+    mask = np.zeros_like(image)
+    cv2.fillPoly(mask, road_vertices, 255)
+    cv2.fillPoly(mask, l_mirror_vertices, 255)
+    cv2.fillPoly(mask, r_mirror_vertices, 255)
+    total_masks = cv2.bitwise_and(image, mask)
+    
+    
+    # show only area that is mask
+
+    cv2.imwrite("pics/testing/masked_road.jpg", masked_road)
+    cv2.imwrite("pics/testing/masked_L_mirror.jpg", masked_L_mirror)
+    cv2.imwrite("pics/testing/masked_R_mirror.jpg", masked_R_mirror)
+    cv2.imwrite("pics/testing/total_masks.jpg", total_masks)
+
+    return masked_road, masked_L_mirror, masked_R_mirror, total_masks
 
 def draw_lines(image, lines, color):
     coords = lines
     #         #coords = line[0]
-    cv2.line(image, (coords[0], coords[1]), (coords[2], coords[3]), color, 1)
+    cv2.line(image, (coords[0], coords[1]), (coords[2], coords[3]), color, 2)
     
     # try:
     #     for coords in lines:
@@ -35,43 +65,56 @@ def draw_lines(image, lines, color):
     #     pass
 
 def process_frame(frame):
-    #Lanes
+
+    #gets full frame ready for edge detection
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     canny = cv2.Canny(gray, threshold1=200, threshold2=300) #200/300
     canny_blurred = cv2.GaussianBlur(canny, (5,5), 0)
 
-    #old vertices
-    #vertices = np.array([[300,507], [1024,507], [1024,375], [840,375], [840,275], [300,275]])
+    # vertices of parts of screen for individual line detection
+    road_vertices = np.array([[300,507], [840,507], [840,350], [300,350]], dtype=np.int32)
+    l_mirror_vertices = np.array([[18,156], [169,156], [169,362], [18,362]], dtype=np.int32)
+    r_mirror_vertices = np.array([[852,156], [1003,156], [1003,362], [852,362]], dtype=np.int32)
+    masked_road, masked_l_mirror, masked_r_mirror, total_masks = roi(canny_blurred, [road_vertices], [l_mirror_vertices], [r_mirror_vertices])
+
+    #cv2.imwrite('test.jpg', masked_frame)
     
-    #trying a narrower window to catch less lines far ahead
-    vertices = np.array([[300,507], [840,507], [840,375], [300,275]])
-    processed_lane_image = lanes_roi(canny_blurred, [vertices])
-    
-    #                                 edges                                              minLineLength, maxLineGap
-    #found_lines = cv2.HoughLinesP(processed_lane_image, 1, 1*np.pi/180, 200, np.array([]), 13,              5)
-    found_lines = cv2.HoughLinesP(processed_lane_image, cv2.HOUGH_PROBABILISTIC, 1*np.pi/180, 200, np.array([]), 40, 10)
+    road_lines = cv2.HoughLinesP(masked_road, cv2.HOUGH_PROBABILISTIC, 1*np.pi/180, 200, np.array([]), 40, 10)
+    l_mirror_lines = cv2.HoughLinesP(masked_l_mirror, cv2.HOUGH_PROBABILISTIC, 1*np.pi/180, 200, np.array([]), 40, 10)
+    r_mirror_lines = cv2.HoughLinesP(masked_r_mirror, cv2.HOUGH_PROBABILISTIC, 1*np.pi/180, 200, np.array([]), 40, 10)
+    # print(len(road_lines),len(l_mirror_lines),len(r_mirror_lines),)
 
-    processed_lane_image = cv2.cvtColor(processed_lane_image, cv2.COLOR_GRAY2BGR) #need to color to see lines
+    all_slopes = []
+    if road_lines is not None:
+        road_slopes = lanes.get_slopes(road_lines, True)
+        all_slopes.append(road_slopes)
+    if l_mirror_lines is not None:
+        l_mirror_slopes = lanes.get_slopes(l_mirror_lines, True)
+        all_slopes.append(l_mirror_slopes)
+    if r_mirror_lines is not None:
+        r_mirror_slopes = lanes.get_slopes(r_mirror_lines, True)
+        all_slopes.append(r_mirror_slopes)
+    # all_slopes = [road_slopes]
 
+    for slopes in all_slopes:
+        for pos_neg_disq in slopes.keys():
+            if pos_neg_disq == 'pos':
+                color = [255,0,0]
+            if pos_neg_disq == 'neg':
+                color = [0,255,0]
+            if pos_neg_disq == 'disqualified':
+                color = [0,0,255]
+            for idx in slopes[pos_neg_disq]:
 
+                #draw_lines(frame, slopes[pos_neg_disq][idx][2], color)
+                # masked_frame = cv2.cvtColor(total_masks, cv2.COLOR_GRAY2BGR)
 
-    # fuck = lanes(found_lines)
-    # print(f"fuck: {fuck}")
-    # print()
+                '''
+                This draws calculated lines directly on frame that was passed in
+                '''
+                draw_lines(frame, slopes[pos_neg_disq][idx][2], color)
 
-    slopes = lanes.get_slopes(found_lines, True)
-    for pos_neg_disq in slopes.keys():
-        if pos_neg_disq == 'pos':
-            color = [255,0,0]
-        if pos_neg_disq == 'neg':
-            color = [0,255,0]
-        if pos_neg_disq == 'disqualified':
-            color = [0,0,255]
-        for idx in slopes[pos_neg_disq]:
-
-            draw_lines(frame, slopes[pos_neg_disq][idx][2], color)
-
-  
+    #return masked_frame
     return frame
 
 #runtime = "GAME"
@@ -120,7 +163,7 @@ if runtime == "VIDEO":
         cv2.imshow("lines", screen_with_lines)   
         cv2.moveWindow("lines",875,0)
         
-        if cv2.waitKey(100) == ord('q'): #press q to quit
+        if cv2.waitKey(5) == ord('q'): #press q to quit
             break
 
 # uncomment if video output wanted

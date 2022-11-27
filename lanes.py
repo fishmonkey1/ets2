@@ -8,7 +8,6 @@ import pprint
 pp = pprint.PrettyPrinter(depth=6)
 
 
-    
 def get_slopes(lines, include_disqualified=False):
     #print(f"number of lines found: {len(lines)}")
     '''
@@ -61,6 +60,9 @@ def get_slopes(lines, include_disqualified=False):
     #print("lines added to dict: ", added)
     #pp.pprint(line_dict)
     return line_dict 
+
+
+
 
 def find_matching_lines(line_dict):
     '''
@@ -193,6 +195,6 @@ def lanes(lines):
 
         # return [l1_x1, l1_y1, l1_x2, l1_y2], [l2_x1, l2_y1, l2_x2, l2_y2]
     except Exception as e:
-        traceback.print_exc()
+        #traceback.print_exc()
         #print(str(e), "No lanes found this frame")
         pass
