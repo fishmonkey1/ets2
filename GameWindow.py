@@ -19,7 +19,7 @@ def windowData(hwnd, extra):
     print("\tLocation: (%d, %d)" % (game_x, game_y))
     print("\t    Size: (%d, %d)" % (game_w, game_h))
 
-    # Windows 10 has an invisible window padding on left/right/bottom
+    # Windows 10 has an invisible window padding on left/right/bottom of windows
     invisible_win10_padding = int((window_w-game_w) / 2)
     title_bar_height = window_h - invisible_win10_padding - game_h
     print("padding px: ", invisible_win10_padding, " and title ", title_bar_height)
@@ -39,6 +39,8 @@ if __name__ == "__main__":
         width, height, window_padding, title = windowData(hwnd, None)
 
         #COMMENT THIS OUT IF YOU DON'T WANT TO SEE TITLE BAR
+        # Currently handling for having the title bar there, so this won't work
+        # TODO: handle for title bar not being there
         title = 0
         
         #                                                     X             Y

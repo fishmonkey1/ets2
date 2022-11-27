@@ -8,62 +8,6 @@ import pprint
 pp = pprint.PrettyPrinter(depth=6)
 
 
-def get_slopes(lines, include_disqualified=False):
-    #print(f"number of lines found: {len(lines)}")
-    '''
-    Finds slope(m) and y-intercept(b)
-    Creates dict of all lines... slope, y-intercept, [x,y,x2,y2]
-    Removes lines with horizontal slope
-    '''
-
-    line_dict = {'pos': {},
-                'neg': {}}
-    # line_dict['pos']['innerkey1] = 'value'             
-
-    added = 0
-    disqualified = 0
-    for idx,i in enumerate(lines):
-        for xyxy in i:
-            # These four lines:
-            # modified from http://stackoverflow.com/questions/21565994/method-to-return-the-equation-of-a-straight-line-given-two-points
-            # Used to calculate the definition of a line, given two sets of coords.
-            x_coords = (xyxy[0],xyxy[2])
-            y_coords = (xyxy[1],xyxy[3])
-            A = vstack([x_coords,ones(len(x_coords))]).T
-            m, b = lstsq(A, y_coords)[0]
-
-            # TODO: we can calculate this shit ourselves,
-            #       you lazy fuck
-            #       you don't need to use least squares
-            #       to calculate y = mx+b
-
-            # #This skips over horizontal lines
-            if 0.15> m > -0.15:
-                disqualified +=1
-                if include_disqualified:
-                    if 'disqualified' not in line_dict:
-                        line_dict['disqualified'] = {}
-                    line_dict['disqualified'][idx] = [m,b,[xyxy[0], xyxy[1], xyxy[2], xyxy[3]]]
-                    added +=1
-                continue
-            
-            if m > 0:
-                line_dict['pos'][idx] = [m,b,[xyxy[0], xyxy[1], xyxy[2], xyxy[3]]]
-                added +=1
-                #pos_line_dict[idx] = [m,b,[xyxy[0], xyxy[1], xyxy[2], xyxy[3]]]
-            if m < 0:
-                line_dict['neg'][idx] = [m,b,[xyxy[0], xyxy[1], xyxy[2], xyxy[3]]]
-                added +=1
-                #neg_line_dict[idx] = [m,b,[xyxy[0], xyxy[1], xyxy[2], xyxy[3]]]
-            
-            #line_dict[idx] = [m,b,[xyxy[0], xyxy[1], xyxy[2], xyxy[3]]]
-    #print("lines added to dict: ", added)
-    #pp.pprint(line_dict)
-    return line_dict 
-
-
-
-
 def find_matching_lines(line_dict):
     '''
     Goes over improved dict
