@@ -1,6 +1,3 @@
-import GameWindow
-import lanes
-
 import cv2
 import numpy as np
 import time
@@ -17,16 +14,22 @@ pp = pprint.PrettyPrinter(depth=6)
 # not using these yet
 import keyboardkeys as k
 buttons = k.Keys()
-
 from grabscreen import grab_screen
+import GameWindow
+import lanes
 '''
-# venv\Scripts\activate.bat
+# venv\Scripts\activate
 
 def roi(image,vertices):
-    # revisit this
-    #channel_count = image.shape[0]  # i.e. 3 or 4 depending on your image?
-    #color = (255,)*channel_count #this makes the mask clear
+    # revisit later, might not be nessecary? trying to set no color for masking
+    # channel_count = image.shape[0]  # i.e. 3 or 4 depending on your image?
+    # color = (255,)*channel_count #this makes the mask clear
+
     color = 255
+
+    # TODO: Refactor:
+    #       loop and put masks into dict
+    #       return single dict
 
     mask = np.zeros_like(image) # empty array of zeros (empty pixels) in same shape as frame
     cv2.fillPoly(mask, vertices["road_vertices"], color) # create polygon shape (mask)
@@ -48,12 +51,13 @@ def roi(image,vertices):
 
     return masked_road, masked_L_mirror, masked_R_mirror, total_masks
 
-def get_slopes(lines, include_disqualified=False):
-    #print(f"number of lines found: {len(lines)}")
+def get_slopes(lines, include_horizontal=False):
     '''
     Finds slope(m) and y-intercept(b)
     Creates dict of all lines... slope, y-intercept, [x,y,x2,y2]
-    Removes lines with horizontal slope
+
+    TODO: Change horizontal --> horizontal
+    
     '''
 
     line_dict = {'pos': {},
@@ -61,7 +65,7 @@ def get_slopes(lines, include_disqualified=False):
     # line_dict['pos']['innerkey1] = 'value'             
 
     added = 0
-    disqualified = 0
+    horizontal = 0
     for idx,i in enumerate(lines):
         for xyxy in i:
 
@@ -81,18 +85,18 @@ def get_slopes(lines, include_disqualified=False):
 
             # #This skips over horizontal lines
             if 0.15> m > -0.15:
-                disqualified +=1
-                if include_disqualified:
-                    if 'disqualified' not in line_dict:
-                        line_dict['disqualified'] = {}
-                    line_dict['disqualified'][idx] = [m,b,[xyxy[0], xyxy[1], xyxy[2], xyxy[3]]]
+                horizontal +=1
+                if include_horizontal:
+                    if 'horizontal' not in line_dict:
+                        line_dict['horizontal'] = {}
+                    line_dict['horizontal'][idx] = [m,b,[xyxy[0], xyxy[1], xyxy[2], xyxy[3]]]
                     added +=1
                 continue
             
             if m > 0:
                 line_dict['pos'][idx] = [m,b,[xyxy[0], xyxy[1], xyxy[2], xyxy[3]]]
                 added +=1
-                #pos_line_dict[idx] = [m,b,[xyxy[0], xyxy[1], xyxy[2], xyxy[3]]]
+
             if m < 0:
                 line_dict['neg'][idx] = [m,b,[xyxy[0], xyxy[1], xyxy[2], xyxy[3]]]
                 added +=1
@@ -170,19 +174,19 @@ def process_frame(frame):
 
 
     for slopes in all_slopes:
-        for pos_neg_disq in slopes.keys():
+        for pos_neg_horiz in slopes.keys():
             
             # Sets color of line for drawing
-            if pos_neg_disq == 'pos':
+            if pos_neg_horiz == 'pos':
                 color = [255,0,0] # Green
-            if pos_neg_disq == 'neg':
+            if pos_neg_horiz == 'neg':
                 color = [0,255,0] # Blue
-            if pos_neg_disq == 'disqualified':
+            if pos_neg_horiz == 'horizontal':
                 color = [0,0,255] # Red
 
             # Draws lines on frame
-            for idx in slopes[pos_neg_disq]:
-                draw_lines(frame, slopes[pos_neg_disq][idx][2], color)
+            for idx in slopes[pos_neg_horiz]:
+                draw_lines(frame, slopes[pos_neg_horiz][idx][2], color)
                 
     return frame
 

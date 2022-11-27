@@ -8,13 +8,26 @@ import pprint
 pp = pprint.PrettyPrinter(depth=6)
 
 
+#    This file should take the lines found, and find which are most likely lanes.
+
+#    Things have changed as to how we are finding and serving lines,
+#    so most of the logic here needs a re-write.
+
+#    Instead of focusing on returning two lane lines as we were originally,
+#    I want to be focus on returning GOOD lines, even if there are more than two.
+
+
 def find_matching_lines(line_dict):
     '''
-    Goes over improved dict
-    for each line, looks at other lines and sees if matching slope within 20% variance
-    creates 'final lanes' dict where Key is a slope, and Value is
-    all lines that match for that slope
+    Goes over dict of found lines,
+    For each line, looks at other lines and sees if matching slope within 20% variance.
+    Creates 'final lanes' dict, 
+    where Key is a slope, and Value is all lines that match for that slope
 
+    TODO: compare values against same dict
+          https://stackoverflow.com/questions/14345397/compare-a-dictionary-to-itself-in-python
+
+          Creating a new dict for comparisons is slow and inefficient.
     '''
 
     final_lanes = {'pos': {},
@@ -105,13 +118,13 @@ def driving_lanes(final_lanes):
 
     return lanes
 
-def lanes(lines):
+#def lanes(lines):
     # TODO: if no line, don't run function 
     # if this fails, no line found
-    try:
+    #try:
         
         # Dict with slope/bias info for all lines
-        line_dict, disqualified = get_slopes(lines)
+        #line_dict, disqualified = get_slopes(lines)
         #print(f"disqualified: {disqualified}")
         #print(f"number of pos lines: {len(line_dict['pos'])}")
         # if len(line_dict['neg']) > 0:
@@ -119,13 +132,13 @@ def lanes(lines):
 
         # Dict with possible lines narrowed down
         # based on matching slopes
-        final_lanes = find_matching_lines(line_dict)
+        #final_lanes = find_matching_lines(line_dict)
         #print(f"number of good pos lanes: {len(final_lanes['pos'])}")
         #print(f"number of good neg lanes: {len(final_lanes['neg'])}")
         
         # [ [lane1_id, lane2_id], [lane1_id, lane2_id] ]
 
-        id_list = driving_lanes(final_lanes)
+        #id_list = driving_lanes(final_lanes)
         #print(id_list)
 
         # lane1_id = driving_lanes(final_lanes)
@@ -138,7 +151,7 @@ def lanes(lines):
 
 
         # return [l1_x1, l1_y1, l1_x2, l1_y2], [l2_x1, l2_y1, l2_x2, l2_y2]
-    except Exception as e:
+    #except Exception as e:
         #traceback.print_exc()
         #print(str(e), "No lanes found this frame")
-        pass
+        #pass

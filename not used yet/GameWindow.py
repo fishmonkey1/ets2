@@ -28,9 +28,12 @@ def windowData(hwnd, extra):
 
     return window_w, window_h, invisible_win10_padding, title_bar_height
  
-hwnd = win32gui.FindWindow(None, "Euro Truck Simulator 2",)
+
 
 if __name__ == "__main__":
+    # window ID of game 
+    hwnd = win32gui.FindWindow(None, "Euro Truck Simulator 2",)
+
     if hwnd == 0:
         raise Exception("Could not find ETS2 window, please make sure it is launched.")
 
@@ -39,7 +42,7 @@ if __name__ == "__main__":
         width, height, window_padding, title = windowData(hwnd, None)
 
         #COMMENT THIS OUT IF YOU DON'T WANT TO SEE TITLE BAR
-        # Currently handling for having the title bar there, so this won't work
+        # Currently handling for having the title bar there, so don't touch this yet
         # TODO: handle for title bar not being there
         title = 0
         
