@@ -60,10 +60,7 @@ def roi(image,vertices):
 def get_slopes(lines, include_horizontal=False):
     '''
     Finds slope(m) and y-intercept(b)
-    Creates dict of all lines... slope, y-intercept, [x,y,x2,y2]
-
-    TODO: Change horizontal --> horizontal
-    
+    Creates dict of all lines... slope, y-intercept, [x,y,x2,y2]   
     '''
 
     line_dict = {'pos': {},
@@ -117,6 +114,9 @@ def draw_lines(image, coords, color):
     
 
 def draw_vertices(frame, vertices):
+    '''
+    Draws vertices on frame for testing purposes
+    '''
 
     for key in vertices.keys():
         vert = vertices[key]
@@ -153,7 +153,7 @@ def process_frame(frame):
     masked_road, masked_l_mirror, masked_r_mirror, total_masks = roi(canny_blurred, vertices)
     
     # this saves an image on exit
-    cv2.imwrite("pics/testing/total_masks.jpg", total_masks)
+    #cv2.imwrite("pics/testing/total_masks.jpg", total_masks)
 
     road_lines = cv2.HoughLinesP(masked_road, cv2.HOUGH_PROBABILISTIC, 1*np.pi/180, 200, np.array([]), 40, 10)
     l_mirror_lines = cv2.HoughLinesP(masked_l_mirror, cv2.HOUGH_PROBABILISTIC, 1*np.pi/180, 200, np.array([]), 2, 5)
@@ -197,94 +197,116 @@ def process_frame(frame):
 
 #runtime = "GAME" # don't think this is working quite yet
 runtime = "VIDEO"
+def main(runtime):
+    if runtime == "GAME":
+        
+        # just a countdown so you can click on game and bring to focus
+        for i in range(5):
+            print(i)
+            time.sleep(1)
 
-if runtime == "GAME":
-    
-    # just a countdown so you can click on game and bring to focus
-    for i in range(5):
-        print(i)
-        time.sleep(1)
-
-    #run for just 150 frames.
-    for i in range(150):
-        screen = grab_screen(region=(0,0,1024,768))
-        screen = process_frame(screen)
-        screen = cv2.resize(screen, (896,500))
-        cv2.imshow("lines", screen)   
-        #cv2.moveWindow("cv2screen",1025,0)  #move window so we can see it next to game
-        cv2.moveWindow("lines",875,0)
-        #cv2.waitKey(1) #this is needed to keep py kernel from crashing
-        if cv2.waitKey(1) == ord('q'):
-            break
+        #run for just 150 frames.
+        for i in range(150):
+            # screen = grab_screen(region=(0,0,1024,768))
+            screen = process_frame(screen)
+            screen = cv2.resize(screen, (896,500))
+            cv2.imshow("lines", screen)   
+            #cv2.moveWindow("cv2screen",1025,0)  #move window so we can see it next to game
+            cv2.moveWindow("lines",875,0)
+            #cv2.waitKey(1) #this is needed to keep py kernel from crashing
+            if cv2.waitKey(1) == ord('q'):
+                break
 
 
-if runtime == "VIDEO":
+    if runtime == "VIDEO":
 
-    video = cv2.VideoCapture("pics/ETS2video.mp4")
-    
-    # uncomment if video output wanted
-    #out = cv2.VideoWriter('lane_test2.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 60, (896,500))
-
-    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-    paused = False
-
-    
-    while video.isOpened():
-        ret, screen = video.read()
-
-        if not ret:
-            print("Can't find frame. Exiting")
-            break  
-               
-        screen_with_lines = process_frame(screen)
-        screen_with_lines = cv2.resize(screen_with_lines, (896,500))
-
+        video = cv2.VideoCapture("pics/ETS2video.mp4")
+        
         # uncomment if video output wanted
-        #out.write(screen_with_lines) #for saving video results
+        #out = cv2.VideoWriter('lane_test2.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 60, (896,500))
 
-        cv2.imshow("lines", screen_with_lines)   
-        cv2.moveWindow("lines",875,0)
+        frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+        paused = False
 
-        '''
-        During playback:
-            'q' to quit
-            'p' to pause/unpause
 
-        While paused:
-            'right/left' arrow keys to go forward/back frame-by-frame
-        '''
+        while video.isOpened():
+            ret, screen = video.read()
 
-        if paused:
-
-            key = cv2.waitKeyEx(0) #use waitKeyEx to get arrow keys I guess
-            #print(key) # uncomment to print numcodes for keys on press
-
-            if key == 2555904: # right arrow key
-                continue
-
-            if key == 2424832: # left arrow key
-                cur_frame_number = video.get(cv2.CAP_PROP_POS_FRAMES)
-                print(cur_frame_number)
-                prev_frame = cur_frame_number - 1
-                if cur_frame_number > 1:
-                    prev_frame -= 1
-                video.set(cv2.CAP_PROP_POS_FRAMES, prev_frame)
-
-            if key == ord('p'): #press p to unpause
-                paused = False
-                continue
-
-            if key == ord('q'): #press q to quit
-                break
-        else:
-            key = cv2.waitKey(5)
-            if key == ord('q'): #press q to quit
-                break
-            if key == ord('p'): #press p to pause/unpause
-                paused = True
+            if not ret:
+                print("Can't find frame. Exiting")
+                break  
                 
+            screen_with_lines = process_frame(screen)
+            screen_with_lines = cv2.resize(screen_with_lines, (896,500))
 
-# uncomment if video output wanted
-video.release()
-cv2.destroyAllWindows()
+            # uncomment if video output wanted
+            #out.write(screen_with_lines) #for saving video results
 
+            cv2.imshow("lines", screen_with_lines)   
+            cv2.moveWindow("lines",875,0)
+
+            '''
+            During playback:
+                'q' to quit
+                'p' to pause/unpause
+
+            While paused:
+                'right/left' arrow keys to go forward/back frame-by-frame
+            '''
+
+            if paused:
+
+                key = cv2.waitKeyEx(0) # waitKeyEx instead of waitKey
+                                    # to get arrow keys
+
+                #print(key) # uncomment to print numcodes for keys on press
+                            # in case current numcodes don't work for you
+
+                if key == 2555904: # right arrow key
+                    continue
+
+                if key == 2424832: # left arrow key
+                    cur_frame_number = video.get(cv2.CAP_PROP_POS_FRAMES)
+                    #print(cur_frame_number)
+                    prev_frame = cur_frame_number - 1
+                    if cur_frame_number > 1:
+                        prev_frame -= 1
+                    video.set(cv2.CAP_PROP_POS_FRAMES, prev_frame)
+
+                if key == ord('p'): #press p to unpause
+                    paused = False
+                    continue
+
+                if key == ord('q'): #press q to quit
+                    paused = False
+                    break
+            else:
+                key = cv2.waitKey(5)
+                if key == ord('q'): #press q to quit
+                    break
+                if key == ord('p'): #press p to pause
+                    paused = True
+                    
+
+    # uncomment if video output wanted
+    video.release()
+    cv2.destroyAllWindows()
+
+
+#####################################
+'''
+TODO: 
+        - Get monitor size from GameWndow
+          (in fact, could have it default to using the VIDEO runtime if ETS2 not found.)
+
+            - Use that to implement a modified imshow function,
+              which can size/position each window so that we can
+              nicely display multiple videos at once without overlapping.
+
+        - 
+'''
+show_frame_with_lines = True
+show_canny = False
+
+
+main(runtime = 'VIDEO')
