@@ -20,6 +20,12 @@ import lanes
 '''
 # venv\Scripts\activate
 
+
+# vertices of parts of screen for individual line detection  
+vertices = {"road_vertices":     [np.array([[300,508], [340,508], [390,475], [460,445], [560,445], [630,475], [685,508], [840,508], [840,350], [300,350]], dtype=np.int32)],
+            "l_mirror_vertices": [np.array([[18,285], [169,285], [169,362], [18,362]], dtype=np.int32)],
+            "r_mirror_vertices": [np.array([[852,285], [1003,285], [1003,362], [852,362]], dtype=np.int32)]}
+
 def roi(image,vertices):
     # revisit later, might not be nessecary? trying to set no color for masking
     # channel_count = image.shape[0]  # i.e. 3 or 4 depending on your image?
@@ -125,22 +131,21 @@ def draw_vertices(frame, vertices):
 
 def process_frame(frame):
     '''
-    TODO:
     https://stackoverflow.com/questions/45127421/when-applying-the-canny-function-can-you-apply-the-mask-first
     Doing masking before edge detection results in detecting edge border around mask.
-    need to mask larger polygon, then canny edge detect, then mask actual size again to get rid of border...
-    make preprocessing func to do this.
+    Need to mask larger polygon, then canny edge detect, then mask actual size again to get rid of border...
+
+    TODO: Make preprocessing func to do this.
+
+    Helpful links for resizing polygon:
+    https://stackoverflow.com/questions/49558464/shrink-polygon-using-corner-coordinates
+    https://stackoverflow.com/questions/1109536/an-algorithm-for-inflating-deflating-offsetting-buffering-polygons
     '''
     
     #gets full frame ready for edge detection
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     canny = cv2.Canny(gray, threshold1=200, threshold2=300) #200/300
     canny_blurred = cv2.GaussianBlur(canny, (5,5), 0)
-
-    # vertices of parts of screen for individual line detection  
-    vertices = {"road_vertices":     [np.array([[300,508], [340,508], [390,475], [460,445], [560,445], [630,475], [685,508], [840,508], [840,350], [300,350]], dtype=np.int32)],
-                "l_mirror_vertices": [np.array([[18,285], [169,285], [169,362], [18,362]], dtype=np.int32)],
-                "r_mirror_vertices": [np.array([[852,285], [1003,285], [1003,362], [852,362]], dtype=np.int32)]}
 
     #this draws mask poly on pic
     draw_vertices(frame,vertices)
@@ -219,6 +224,10 @@ if runtime == "VIDEO":
     
     # uncomment if video output wanted
     #out = cv2.VideoWriter('lane_test2.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 60, (896,500))
+
+    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    paused = False
+
     
     while video.isOpened():
         ret, screen = video.read()
@@ -235,11 +244,47 @@ if runtime == "VIDEO":
 
         cv2.imshow("lines", screen_with_lines)   
         cv2.moveWindow("lines",875,0)
-        
-        if cv2.waitKey(5) == ord('q'): #press q to quit
-            break
+
+        '''
+        During playback:
+            'q' to quit
+            'p' to pause/unpause
+
+        While paused:
+            'right/left' arrow keys to go forward/back frame-by-frame
+        '''
+
+        if paused:
+
+            key = cv2.waitKeyEx(0) #use waitKeyEx to get arrow keys I guess
+            #print(key) # uncomment to print numcodes for keys on press
+
+            if key == 2555904: # right arrow key
+                continue
+
+            if key == 2424832: # left arrow key
+                cur_frame_number = video.get(cv2.CAP_PROP_POS_FRAMES)
+                print(cur_frame_number)
+                prev_frame = cur_frame_number - 1
+                if cur_frame_number > 1:
+                    prev_frame -= 1
+                video.set(cv2.CAP_PROP_POS_FRAMES, prev_frame)
+
+            if key == ord('p'): #press p to unpause
+                paused = False
+                continue
+
+            if key == ord('q'): #press q to quit
+                break
+        else:
+            key = cv2.waitKey(5)
+            if key == ord('q'): #press q to quit
+                break
+            if key == ord('p'): #press p to pause/unpause
+                paused = True
+                
 
 # uncomment if video output wanted
-#out.release()
+video.release()
 cv2.destroyAllWindows()
 
