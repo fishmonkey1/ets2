@@ -10,7 +10,6 @@ from statistics import mean
 import pprint
 pp = pprint.PrettyPrinter(depth=5)
 
-import lanes_old
 '''
 # not using these yet
 import keyboardkeys as k
@@ -226,14 +225,6 @@ def process_frame(frame, detectionType):
         road_lines = cv2.HoughLinesP(masked_road, cv2.HOUGH_PROBABILISTIC, 1*np.pi/180, 200, np.array([]), 40, 10)
         l_mirror_lines = cv2.HoughLinesP(masked_l_mirror, cv2.HOUGH_PROBABILISTIC, 1*np.pi/180, 200, np.array([]), 2, 5)
         r_mirror_lines = cv2.HoughLinesP(masked_r_mirror, cv2.HOUGH_PROBABILISTIC, 1*np.pi/180, 200, np.array([]), 2, 5)
-
-    
-
-
-    # if l_mirror_lines is not None:
-    #     print(len(l_mirror_lines))
-    # if r_mirror_lines is not None:
-    #     print(len(r_mirror_lines))
     
 
         all_slopes = []
@@ -363,10 +354,10 @@ def main(runtime, lineDetectionType):
         video_output = True
 
 
-        video = cv2.VideoCapture("pics/ETS2video.mp4")
+        video = cv2.VideoCapture("pics/input/ETS2video.mp4")
         
         if video_output:
-            out = cv2.VideoWriter('new test.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 60, (896,500))
+            out = cv2.VideoWriter('pics/final_output/new test.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 60, (896,500))
 
         frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
         paused = False
@@ -447,7 +438,7 @@ def main(runtime, lineDetectionType):
         
         screen_with_lines = process_frame(frame, lineDetectionType)
 
-        cv2.imwrite("pics/testing/output.jpg", screen_with_lines)
+        cv2.imwrite("pics/final_output/output.jpg", screen_with_lines)
             
 
     # uncomment if video output wanted
