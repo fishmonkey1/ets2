@@ -10,14 +10,14 @@ from statistics import mean
 import pprint
 pp = pprint.PrettyPrinter(depth=5)
 
-
+import lanes_old
 '''
 # not using these yet
 import keyboardkeys as k
 buttons = k.Keys()
 from grabscreen import grab_screen
 import GameWindow
-import lanes
+
 '''
 # venv\Scripts\activate
 
@@ -164,12 +164,12 @@ def get_slopes(lines, include_horizontal=True, min_line_length = 40):
 
 
 
-def draw_lines(image, coords, color, LSD=None):
+def draw_lines(image, coords, color, LSD=None, thickness=2):
              #coords = line[0]
     if LSD is not None:
-        cv2.line(image, (int(LSD[0]), int(LSD[1])), (int(LSD[2]),int(LSD[3])), color, 2)
+        cv2.line(image, (int(LSD[0]), int(LSD[1])), (int(LSD[2]),int(LSD[3])), color, thickness)
     else:        
-        cv2.line(image, (coords[0], coords[1]), (coords[2], coords[3]), color, 2)
+        cv2.line(image, (coords[0], coords[1]), (coords[2], coords[3]), color, thickness)
     
 
 def draw_vertices(frame, vertices):
@@ -264,6 +264,8 @@ def process_frame(frame, detectionType):
                     draw_lines(frame, slopes[pos_neg_horiz][idx][2], color)
 
     if detectionType == 'LSD':
+
+        black_mask = np.zeros_like(frame, dtype = "uint8")
         
         lsd = cv2.createLineSegmentDetector(cv2.LSD_REFINE_ADV) #LSD_REFINE_STD is normal, LSD_REFINE_ADV for advanced          
         cropped_road, cropped_l_mirror, cropped_r_mirror = roi(gray, vertices)
@@ -278,40 +280,51 @@ def process_frame(frame, detectionType):
             Vector containing number of false alarms in the line region, with precision of 10%. The bigger the value, logarithmically better the detection.
         '''
 
-        cropped_road_lines = lsd.detect(cropped_road)[0]            # TODO: All of these are based on the smaller cropped images.
-        cropped_l_mirror_lines = lsd.detect(cropped_l_mirror)[0]    # TODO: We now need to take these and map a function on the lines
-        cropped_r_mirror_lines = lsd.detect(cropped_r_mirror)[0]    # TODO: To account for the offset from (0,0) for each of these
+        cropped_road_lines = lsd.detect(cropped_road)[0]            
+        cropped_l_mirror_lines = lsd.detect(cropped_l_mirror)[0]    
+        cropped_r_mirror_lines = lsd.detect(cropped_r_mirror)[0]    
         
         road_lines, l_mirror_lines, r_mirror_lines = transposePoints(cropped_road_lines, cropped_l_mirror_lines, cropped_r_mirror_lines)
 
+        # TODO: get_slopes is filtering out smaller lines.
+        #       perhaps get all lines, get road lines,
+        #       then filter out all lines outside of those two road lines
         road_slopes = get_slopes(road_lines)
         l_mirror_slopes = get_slopes(l_mirror_lines)
         r_mirror_slopes = get_slopes(r_mirror_lines)
 
 
-        all_slopes = [road_slopes,l_mirror_slopes,r_mirror_slopes] #I know this is ugly I'll fix it later
-        for slopes in all_slopes:
-            for pos_neg_horiz in slopes.keys():
-                
-                # Sets color of line for drawing
-                if pos_neg_horiz == 'pos':
-                    color = [255,0,0] # Green
-                if pos_neg_horiz == 'neg':
-                    color = [0,255,0] # Blue
-                if pos_neg_horiz == 'horizontal':
-                    color = [0,0,255] # Red
+        draw_all_good_lines = True
 
-                # Draws lines on frame
-                for idx in slopes[pos_neg_horiz]:
-                    draw_lines(frame, coords=None, color=color, LSD=slopes[pos_neg_horiz][idx][2])
+        if draw_all_good_lines:
+            all_slopes = [road_slopes,l_mirror_slopes,r_mirror_slopes] #I know this is ugly I'll fix it later
+            for slopes in all_slopes:
+                for pos_neg_horiz in slopes.keys():
+                    
+                    # Sets color of line for drawing
+                    if pos_neg_horiz == 'pos':
+                        color = [255,0,0] # Green
+                    if pos_neg_horiz == 'neg':
+                        color = [0,255,0] # Blue
+                    if pos_neg_horiz == 'horizontal':
+                        color = [0,0,255] # Red
 
+                    # Draws lines on frame
+                    for idx in slopes[pos_neg_horiz]:
+                        draw_lines(frame, coords=None, color=color, LSD=slopes[pos_neg_horiz][idx][2])
 
-        # draw_lines(frame, coords=None, color=[255,0,0], LSD=cropped_road_lines)
-        # draw_lines(frame, coords=None, color=[255,0,0], LSD=cropped_l_mirror_lines)
-        # draw_lines(frame, coords=None, color=[255,0,0], LSD=cropped_r_mirror_lines)
+                        
+                        draw_lines(black_mask,coords=None, color=color, LSD=slopes[pos_neg_horiz][idx][2], thickness=1)
 
+        #lane_lines = lanes.lanes(road_slopes)
+
+        
         #this draws outline of ROI
         draw_vertices(frame,vertices)
+
+        midpoint = 515
+
+        
 
         cv2.imwrite("pics/testing/output.jpg", frame)
         # cv2.imwrite("pics/testing/cropped_l_mirror.jpg", cropped_l_mirror)
@@ -321,7 +334,7 @@ def process_frame(frame, detectionType):
 
 
                 
-    return frame
+    return frame, black_mask
 
 #runtime = "GAME" # don't think this is working quite yet
 #runtime = "VIDEO"
@@ -369,15 +382,18 @@ def main(runtime, lineDetectionType):
                 print("Can't find frame. Exiting")
                 break  
                 
-            screen_with_lines = process_frame(screen, lineDetectionType)
+            screen_with_lines, just_lines = process_frame(screen, lineDetectionType)
             #screen_with_lines = process_frame(screen, detectionType='Hough')
             screen_with_lines = cv2.resize(screen_with_lines, (896,500))
+            just_lines = cv2.resize(just_lines, (896,500))
 
             if video_output:
                 out.write(screen_with_lines) #for saving video results
 
             cv2.imshow("lines", screen_with_lines)   
             cv2.moveWindow("lines",875,0)
+
+            cv2.imshow("uhhh", just_lines)
 
             '''
             During playback:
