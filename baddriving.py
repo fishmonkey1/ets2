@@ -22,49 +22,95 @@ import lanes
 
 
 # vertices of parts of screen for individual line detection  
-vertices = {"road_vertices":     [np.array([[300,508], [340,508], [390,475], [460,445], [560,445], [630,475], [685,508], [840,508], [840,350], [300,350]], dtype=np.int32)],
-            "l_mirror_vertices": [np.array([[18,285], [169,285], [169,362], [18,362]], dtype=np.int32)],
-            "r_mirror_vertices": [np.array([[852,285], [1003,285], [1003,362], [852,362]], dtype=np.int32)]}
+# vertices = {"road_vertices":     [np.array([[300,508], [340,508], [390,475], [460,445], [560,445], [630,475], [685,508], [840,508], [840,350], [300,350]], dtype=np.int32)],
+#             "l_mirror_vertices": [np.array([[18,285], [169,285], [169,362], [18,362]], dtype=np.int32)],
+#             "r_mirror_vertices": [np.array([[852,285], [1003,285], [1003,362], [852,362]], dtype=np.int32)]}
+
+# new vertices
+vertices = {"road_vertices":     np.array([[300,508], [840,508], [840,350], [300,350]], dtype=np.int32),
+            "l_mirror_vertices": np.array([[18,285], [169,285], [169,362], [18,362]], dtype=np.int32),
+            "r_mirror_vertices": np.array([[852,285], [1003,285], [1003,362], [852,362]], dtype=np.int32)}
 
 # Going to just ignore lines with slopes that are the same as slopes of vertices....
 ignored_ROI_lines = []
 
 def roi(image,vertices):
-    # revisit later, might not be nessecary? trying to set no color for masking
-    # channel_count = image.shape[2]  # i.e. 3 or 4 depending on your image?
-    # color = (255,)*channel_count #this makes the mask clear
 
-    color = 255
+
+
+    '''
+    Don't need this but let's keep it until we're sure that cropping is going to work
+
+    # mask = np.zeros_like(image,dtype="uint8" ) # empty array of zeros (empty pixels) in same shape as frame
+    # cv2.fillPoly(mask, vertices["road_vertices"], color) # create polygon shape (mask)
+    # masked_road = cv2.bitwise_and(image, mask) # show only area of original image that is mask shape
+    # print(masked_road.shape)
+
+    # mask = np.zeros_like(image, dtype="uint8")
+    # cv2.fillPoly(mask, vertices["l_mirror_vertices"], color)
+    # masked_L_mirror = cv2.bitwise_and(image, mask)
+
+    # mask = np.zeros_like(image, dtype="uint8")
+    # cv2.fillPoly(mask, vertices["r_mirror_vertices"], color)
+    # masked_R_mirror = cv2.bitwise_and(image, mask)
+    
+    # mask = np.zeros_like(image, dtype="uint8")
+    # cv2.fillPoly(mask, vertices["road_vertices"], color)
+    # cv2.fillPoly(mask, vertices["l_mirror_vertices"], color)
+    # cv2.fillPoly(mask, vertices["r_mirror_vertices"], color)
+    # total_masks = cv2.bitwise_and(image, mask)
+    '''
+    
+    x,y,w,h = cv2.boundingRect(vertices["road_vertices"])
+    cropped_road = image[y:y+h, x:x+w]
+
+    x,y,w,h = cv2.boundingRect(vertices["l_mirror_vertices"])
+    cropped_l_mirror = image[y:y+h, x:x+w]
+
+    x,y,w,h = cv2.boundingRect(vertices["r_mirror_vertices"])
+    cropped_r_mirror = image[y:y+h, x:x+w]
+
+
+    return cropped_road, cropped_l_mirror, cropped_r_mirror
+
+
+def transposePoints(cropped_road_lines, cropped_l_mirror_lines, cropped_r_mirror_lines):
+    '''
+    Takes found lines from cropped image,
+    Increases x/y values so they are back
+    in their original place on the frame
+
+    TODO: make this a map function instead of iterating
+       '''
+    
+    for arr in cropped_road_lines:
+        for line in arr:
+            x1 = line[0]
+            y1 = line[1]
+            x2 = line[2]
+            y2 = line[3]
+            
+            x_offset, y_offset,_,_ = cv2.boundingRect(vertices["road_vertices"])
+
+            x1 += x_offset
+            y1 += y_offset
+            x2 += x_offset
+            y2 += y_offset
+
+
     
 
-    # TODO: Refactor:
-    #       loop and put masks into dict
-    #       return single dict
-
-    mask = np.zeros_like(image,dtype="uint8" ) # empty array of zeros (empty pixels) in same shape as frame
-    cv2.fillPoly(mask, vertices["road_vertices"], color) # create polygon shape (mask)
-    masked_road = cv2.bitwise_and(image, mask) # show only area of original image that is mask shape
-
-    mask = np.zeros_like(image, dtype="uint8")
-    cv2.fillPoly(mask, vertices["l_mirror_vertices"], color)
-    masked_L_mirror = cv2.bitwise_and(image, mask)
-
-    mask = np.zeros_like(image, dtype="uint8")
-    cv2.fillPoly(mask, vertices["r_mirror_vertices"], color)
-    masked_R_mirror = cv2.bitwise_and(image, mask)
-    
-    mask = np.zeros_like(image, dtype="uint8")
-    cv2.fillPoly(mask, vertices["road_vertices"], color)
-    cv2.fillPoly(mask, vertices["l_mirror_vertices"], color)
-    cv2.fillPoly(mask, vertices["r_mirror_vertices"], color)
-    total_masks = cv2.bitwise_and(image, mask)
-
-    return masked_road, masked_L_mirror, masked_R_mirror, total_masks
+    return 1,1,1
 
 def is_ROI_boundary(line_data=None):
     '''
+    DELETE FUNCTION when cropping is working
+
+    recieves line data: [m, b, [x1, y1, x2, y2]]
     Returns True if line is on ROI.
     '''
+    print("func ran")
+
     def create_ignored_ROI_lines(vertices):
         '''
         Creates list of lines/slopes for the ROI vertices
@@ -97,38 +143,42 @@ def is_ROI_boundary(line_data=None):
     line is same as ROI if:
         start and end point is on ROI line
 
+    if x1 == x2 AND x is less than left side ROI line x:       left side ROI line detected
+        if x1 == x2 AND x is greater than right side ROI line x:   right side ROI line detected
+
+        if y1 == y2 AND y is less than top side ROI line y:        top side ROI line detected
+        if y1 == y2 AND y is greater than bottom side ROI line y:  bottom side ROI line detected
     '''
-    
+    if line_data != None:
+        print("Bad lines:")
+        pp.pprint(line_data)
+        x1 = line_data[2][0]
+        x2 = line_data[2][2]
+        y1 = line_data[2][1]
+        y2 = line_data[2][3]
+
+        
+        for linegroup in ignored_ROI_lines:
+            print(linegroup)
 
 
 
     #if line is on ROI line:
     #    return True
 
-    
-
-    
-
-
-
-
-
-def get_slopes(lines, include_horizontal=False, roi_calc=False):
+def get_slopes(lines, include_horizontal=True, roi_calc=False):
     '''
     Finds slope(m) and y-intercept(b)
     Creates dict of all lines... slope, y-intercept, [x,y,x2,y2]   
     '''
-
     line_dict = {'pos': {},
                 'neg': {},
                 'horizontal': {}}
     # line_dict['pos']['innerkey1] = 'value'             
-    added = 0
-    horizontal = 0
     for idx,i in enumerate(lines):
 
         for xyxy in i:
-
+            
             # These four lines:
             # modified from http://stackoverflow.com/questions/21565994/method-to-return-the-equation-of-a-straight-line-given-two-points
             # Used to calculate the definition of a line, given two sets of coords.
@@ -141,13 +191,6 @@ def get_slopes(lines, include_horizontal=False, roi_calc=False):
 
             line_data = [m,b,[xyxy[0], xyxy[1], xyxy[2], xyxy[3]]]
             
-            if roi_calc:
-                ignored_ROI_lines.append(line_data)
-                continue
-            
-            # Skipping if line is on ROI
-            if is_ROI_boundary(line_data):
-                continue
 
             # #This sorts horizontal lines
             if 0.15> m > -0.15:
@@ -215,6 +258,7 @@ def process_frame(frame, detectionType):
     #gets full frame ready for edge detection
     
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
     if detectionType == 'Hough':
         canny = cv2.Canny(gray, threshold1=200, threshold2=300) #200/300
         canny_blurred = cv2.GaussianBlur(canny, (5,5), 0)
@@ -268,22 +312,35 @@ def process_frame(frame, detectionType):
                     draw_lines(frame, slopes[pos_neg_horiz][idx][2], color)
 
     if detectionType == 'LSD':
-        lsd = cv2.createLineSegmentDetector(cv2.LSD_REFINE_STD)          
+        
+        lsd = cv2.createLineSegmentDetector(cv2.LSD_REFINE_ADV) #LSD_REFINE_STD is normal, LSD_REFINE_ADV for advanced          
                                                                 #need to pass in grayscale
-        masked_road, masked_l_mirror, masked_r_mirror, total_masks = roi(gray, vertices)
-
-        # masked_road = cv2.cvtColor(masked_road, cv2.COLOR_BGR2GRAY)
-        # masked_l_mirror = cv2.cvtColor(masked_l_mirror, cv2.COLOR_BGR2GRAY)
-        # masked_r_mirror = cv2.cvtColor(masked_r_mirror, cv2.COLOR_BGR2GRAY)
-        # total_masks = cv2.cvtColor(total_masks, cv2.COLOR_BGR2GRAY)
+        cropped_road, cropped_l_mirror, cropped_r_mirror = roi(gray, vertices)
+        
 
         # this saves an image on exit
-        cv2.imwrite("pics/testing/total_masks.jpg", total_masks)
+        #cv2.imwrite("pics/testing/total_masks", total_masks)
 
-        road_lines = lsd.detect(masked_road)[0]
-        l_mirror_lines = lsd.detect(masked_l_mirror)[0]
-        r_mirror_lines = lsd.detect(masked_r_mirror)[0]
-        total_lines = lsd.detect(total_masks)[0]
+        '''
+        lsd.detect() returns tuple of:
+            (
+            [Lines in image],
+            [Vector of widths of the regions, where the lines are found. E.g. Width of line.], 
+            [Vector of precisions with which the lines are found.]
+            )
+
+        if createLSD() is set to LSD_REFINE_ADV, tuple will also contain:
+            Vector containing number of false alarms in the line region, with precision of 10%.
+            The bigger the value, logarithmically better the detection.
+        '''
+
+        cropped_road_lines = lsd.detect(cropped_road)[0]            # TODO: All of these are based on the smaller cropped images.
+        cropped_l_mirror_lines = lsd.detect(cropped_l_mirror)[0]    # TODO: We now need to take these and map a function on the lines
+        cropped_r_mirror_lines = lsd.detect(cropped_r_mirror)[0]    # TODO: To account for the offset from (0,0) for each of these
+        
+        road_lines, l_mirror_lines, r_mirror_lines = transposePoints(cropped_road_lines, cropped_l_mirror_lines, cropped_r_mirror_lines)
+        # l_mirror_slopes = get_slopes(l_mirror_lines, True)
+        # pp.pprint(l_mirror_slopes)
 
         
 
@@ -295,7 +352,20 @@ def process_frame(frame, detectionType):
         # draw_lines(frame, coords=None, color=[255,0,0], LSD=l_mirror_lines)
         # draw_lines(frame, coords=None, color=[255,0,0], LSD=r_mirror_lines)
 
-        draw_lines(frame, coords=None, color=[255,0,0], LSD=total_lines)
+        #this is unnesecary.
+        cropped_road = cv2.cvtColor(cropped_road, cv2.COLOR_GRAY2BGR)
+        cropped_l_mirror = cv2.cvtColor(cropped_l_mirror, cv2.COLOR_GRAY2BGR)
+        cropped_r_mirror = cv2.cvtColor(cropped_r_mirror, cv2.COLOR_GRAY2BGR)
+
+        draw_lines(cropped_road, coords=None, color=[255,0,0], LSD=cropped_road_lines)
+        draw_lines(cropped_l_mirror, coords=None, color=[255,0,0], LSD=cropped_l_mirror_lines)
+        draw_lines(cropped_r_mirror, coords=None, color=[255,0,0], LSD=cropped_r_mirror_lines)
+
+        cv2.imwrite("pics/testing/cropped_road.jpg", cropped_road)
+        cv2.imwrite("pics/testing/cropped_l_mirror.jpg", cropped_l_mirror)
+        cv2.imwrite("pics/testing/cropped_r_mirror.jpg", cropped_r_mirror)
+
+        #draw_lines(frame, coords=None, color=[255,0,0], LSD=road_lines)
 
 
                 
@@ -325,11 +395,13 @@ def main(runtime, lineDetectionType):
 
 
     if runtime == "VIDEO":
+        video_output = True
+
 
         video = cv2.VideoCapture("pics/ETS2video.mp4")
         
-        # uncomment if video output wanted
-        #out = cv2.VideoWriter('lane_test2.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 60, (896,500))
+        if video_output:
+            out = cv2.VideoWriter('new test.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 60, (896,500))
 
         frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
         paused = False
@@ -339,6 +411,8 @@ def main(runtime, lineDetectionType):
         while video.isOpened():
             ret, screen = video.read()
 
+            
+
             if not ret:
                 print("Can't find frame. Exiting")
                 break  
@@ -347,8 +421,8 @@ def main(runtime, lineDetectionType):
             #screen_with_lines = process_frame(screen, detectionType='Hough')
             screen_with_lines = cv2.resize(screen_with_lines, (896,500))
 
-            # uncomment if video output wanted
-            #out.write(screen_with_lines) #for saving video results
+            if video_output:
+                out.write(screen_with_lines) #for saving video results
 
             cv2.imshow("lines", screen_with_lines)   
             cv2.moveWindow("lines",875,0)
@@ -394,12 +468,15 @@ def main(runtime, lineDetectionType):
                     break
                 if key == ord('p'): #press p to pause
                     paused = True
+        if video_output:
+            out.release()
         video.release()
         cv2.destroyAllWindows()            
 
     if runtime == "PICTURE":
         path = 'pics/cabin1.png'
         frame = cv2.imread(path)
+        
         screen_with_lines = process_frame(frame, lineDetectionType)
 
         cv2.imwrite("pics/testing/output.jpg", screen_with_lines)
@@ -425,13 +502,13 @@ TODO:
           https://docs.opencv.org/3.4/db/d73/classcv_1_1LineSegmentDetector.html#a1816a3c27f7c9b8d8acffec14451d4c4
           https://stackoverflow.com/questions/41329665/linesegmentdetector-in-opencv-3-with-python
 '''
-show_frame_with_lines = True
-show_canny = False
+# show_frame_with_lines = True
+# show_canny = False
 
-runtime = 'PICTURE' 
-runtime = 'VIDEO'         #  Can be 'VIDEO' or 'GAME' or "PICTURE"
+
+runtime = 'PICTURE'          #  Can be 'VIDEO' or 'GAME' or "PICTURE"
 lineDetectionType = 'LSD'  #  Can be 'LSD' or 'Hough'
-#lineDetectionType = 'Hough'
+
 is_ROI_boundary()
 
 main(runtime, lineDetectionType)
