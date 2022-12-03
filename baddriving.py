@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import time
+from math import dist
 
 from numpy import ones,vstack
 from numpy.linalg import lstsq
@@ -83,90 +84,41 @@ def transposePoints(cropped_road_lines, cropped_l_mirror_lines, cropped_r_mirror
     TODO: make this a map function instead of iterating
        '''
     
+
+    x_offset, y_offset,_,_ = cv2.boundingRect(vertices["road_vertices"])
     for arr in cropped_road_lines:
-        for line in arr:
-            x1 = line[0]
-            y1 = line[1]
-            x2 = line[2]
-            y2 = line[3]
+        for xyxy in arr:
+ 
+            xyxy[0] = xyxy[0] + x_offset
+            xyxy[1] = xyxy[1] + y_offset
+            xyxy[2] = xyxy[2] + x_offset
+            xyxy[3] = xyxy[3] + y_offset
             
-            x_offset, y_offset,_,_ = cv2.boundingRect(vertices["road_vertices"])
 
-            x1 += x_offset
-            y1 += y_offset
-            x2 += x_offset
-            y2 += y_offset
+    x_offset, y_offset,_,_ = cv2.boundingRect(vertices["l_mirror_vertices"])
+    for arr in cropped_l_mirror_lines:
+        for xyxy in arr:
 
-
-    
-
-    return 1,1,1
-
-def is_ROI_boundary(line_data=None):
-    '''
-    DELETE FUNCTION when cropping is working
-
-    recieves line data: [m, b, [x1, y1, x2, y2]]
-    Returns True if line is on ROI.
-    '''
-    print("func ran")
-
-    def create_ignored_ROI_lines(vertices):
-        '''
-        Creates list of lines/slopes for the ROI vertices
-        So that we can disqualify lines on those ROI's
-
-        TODO: We should just run this at runtime instead of
-              at first frame.
-        '''
-        ROI_xyxy = []
-        for ROI in vertices:
-            roi_lines = []
-            array = vertices[ROI][0]
-            last_index = len(array) -1
-            for index, xy in enumerate(array):
-                if index != last_index:
-                    #print(type(xy.copy()))
-                    roi_lines.append([ xy[0].copy(), xy[1].copy() , array[index+1][0].copy(), array[index+1][1].copy() ])
-                else:
-                    #print(type(xy.copy()))
-                    roi_lines.append([ xy[0].copy(), xy[1].copy() , array[0][0].copy(), array[0][1].copy() ])
-            #print(roi_lines)
-            ROI_xyxy.append(np.array(roi_lines, dtype=np.int32))
-
-        get_slopes(ROI_xyxy, include_horizontal=True, roi_calc=True)
-    
-    if ignored_ROI_lines == False:
-        create_ignored_ROI_lines(vertices)
-
-    '''
-    line is same as ROI if:
-        start and end point is on ROI line
-
-    if x1 == x2 AND x is less than left side ROI line x:       left side ROI line detected
-        if x1 == x2 AND x is greater than right side ROI line x:   right side ROI line detected
-
-        if y1 == y2 AND y is less than top side ROI line y:        top side ROI line detected
-        if y1 == y2 AND y is greater than bottom side ROI line y:  bottom side ROI line detected
-    '''
-    if line_data != None:
-        print("Bad lines:")
-        pp.pprint(line_data)
-        x1 = line_data[2][0]
-        x2 = line_data[2][2]
-        y1 = line_data[2][1]
-        y2 = line_data[2][3]
-
-        
-        for linegroup in ignored_ROI_lines:
-            print(linegroup)
+            xyxy[0] = xyxy[0] + x_offset
+            xyxy[1] = xyxy[1] + y_offset
+            xyxy[2] = xyxy[2] + x_offset
+            xyxy[3] = xyxy[3] + y_offset
 
 
+    x_offset, y_offset,_,_ = cv2.boundingRect(vertices["r_mirror_vertices"])
+    for arr in cropped_r_mirror_lines:
+        for xyxy in arr:
+            
+            xyxy[0] = xyxy[0] + x_offset
+            xyxy[1] = xyxy[1] + y_offset
+            xyxy[2] = xyxy[2] + x_offset
+            xyxy[3] = xyxy[3] + y_offset
+  
 
-    #if line is on ROI line:
-    #    return True
+    return cropped_road_lines, cropped_l_mirror_lines, cropped_r_mirror_lines
 
-def get_slopes(lines, include_horizontal=True, roi_calc=False):
+
+def get_slopes(lines, include_horizontal=True, min_line_length = 40):
     '''
     Finds slope(m) and y-intercept(b)
     Creates dict of all lines... slope, y-intercept, [x,y,x2,y2]   
@@ -191,6 +143,9 @@ def get_slopes(lines, include_horizontal=True, roi_calc=False):
 
             line_data = [m,b,[xyxy[0], xyxy[1], xyxy[2], xyxy[3]]]
             
+            length = dist([xyxy[0],xyxy[1]],[xyxy[2],xyxy[3]])
+            if length < min_line_length:
+                continue
 
             # #This sorts horizontal lines
             if 0.15> m > -0.15:
@@ -212,10 +167,7 @@ def get_slopes(lines, include_horizontal=True, roi_calc=False):
 def draw_lines(image, coords, color, LSD=None):
              #coords = line[0]
     if LSD is not None:
-        for xyxy in LSD:
-            
-            #x0, y0, x1, y1 = line.flatten()
-            cv2.line(image, (int(xyxy[0][0]), int(xyxy[0][1])), (int(xyxy[0][2]),int(xyxy[0][3])), color, 2)
+        cv2.line(image, (int(LSD[0]), int(LSD[1])), (int(LSD[2]),int(LSD[3])), color, 2)
     else:        
         cv2.line(image, (coords[0], coords[1]), (coords[2], coords[3]), color, 2)
     
@@ -226,7 +178,7 @@ def draw_vertices(frame, vertices):
     '''
 
     for key in vertices.keys():
-        vert = vertices[key]
+        vert = [vertices[key]]
         isClosed = True
 
         color = (255, 0, 255) #pink
@@ -314,24 +266,16 @@ def process_frame(frame, detectionType):
     if detectionType == 'LSD':
         
         lsd = cv2.createLineSegmentDetector(cv2.LSD_REFINE_ADV) #LSD_REFINE_STD is normal, LSD_REFINE_ADV for advanced          
-                                                                #need to pass in grayscale
         cropped_road, cropped_l_mirror, cropped_r_mirror = roi(gray, vertices)
         
 
-        # this saves an image on exit
-        #cv2.imwrite("pics/testing/total_masks", total_masks)
 
         '''
         lsd.detect() returns tuple of:
-            (
-            [Lines in image],
-            [Vector of widths of the regions, where the lines are found. E.g. Width of line.], 
-            [Vector of precisions with which the lines are found.]
-            )
+            ([Lines in image], [Widths of the regions, where the lines are found. E.g. Width of line.], [Precisions with which the lines are found.])
 
         if createLSD() is set to LSD_REFINE_ADV, tuple will also contain:
-            Vector containing number of false alarms in the line region, with precision of 10%.
-            The bigger the value, logarithmically better the detection.
+            Vector containing number of false alarms in the line region, with precision of 10%. The bigger the value, logarithmically better the detection.
         '''
 
         cropped_road_lines = lsd.detect(cropped_road)[0]            # TODO: All of these are based on the smaller cropped images.
@@ -339,31 +283,39 @@ def process_frame(frame, detectionType):
         cropped_r_mirror_lines = lsd.detect(cropped_r_mirror)[0]    # TODO: To account for the offset from (0,0) for each of these
         
         road_lines, l_mirror_lines, r_mirror_lines = transposePoints(cropped_road_lines, cropped_l_mirror_lines, cropped_r_mirror_lines)
-        # l_mirror_slopes = get_slopes(l_mirror_lines, True)
-        # pp.pprint(l_mirror_slopes)
 
-        
+        road_slopes = get_slopes(road_lines)
+        l_mirror_slopes = get_slopes(l_mirror_lines)
+        r_mirror_slopes = get_slopes(r_mirror_lines)
 
-        # lsd.drawSegments(frame,road_lines)
-        # lsd.drawSegments(frame,l_mirror_lines)
-        # lsd.drawSegments(frame,r_mirror_lines)
 
-        # draw_lines(frame, coords=None, color=[255,0,0], LSD=road_lines)
-        # draw_lines(frame, coords=None, color=[255,0,0], LSD=l_mirror_lines)
-        # draw_lines(frame, coords=None, color=[255,0,0], LSD=r_mirror_lines)
+        all_slopes = [road_slopes,l_mirror_slopes,r_mirror_slopes] #I know this is ugly I'll fix it later
+        for slopes in all_slopes:
+            for pos_neg_horiz in slopes.keys():
+                
+                # Sets color of line for drawing
+                if pos_neg_horiz == 'pos':
+                    color = [255,0,0] # Green
+                if pos_neg_horiz == 'neg':
+                    color = [0,255,0] # Blue
+                if pos_neg_horiz == 'horizontal':
+                    color = [0,0,255] # Red
 
-        #this is unnesecary.
-        cropped_road = cv2.cvtColor(cropped_road, cv2.COLOR_GRAY2BGR)
-        cropped_l_mirror = cv2.cvtColor(cropped_l_mirror, cv2.COLOR_GRAY2BGR)
-        cropped_r_mirror = cv2.cvtColor(cropped_r_mirror, cv2.COLOR_GRAY2BGR)
+                # Draws lines on frame
+                for idx in slopes[pos_neg_horiz]:
+                    draw_lines(frame, coords=None, color=color, LSD=slopes[pos_neg_horiz][idx][2])
 
-        draw_lines(cropped_road, coords=None, color=[255,0,0], LSD=cropped_road_lines)
-        draw_lines(cropped_l_mirror, coords=None, color=[255,0,0], LSD=cropped_l_mirror_lines)
-        draw_lines(cropped_r_mirror, coords=None, color=[255,0,0], LSD=cropped_r_mirror_lines)
 
-        cv2.imwrite("pics/testing/cropped_road.jpg", cropped_road)
-        cv2.imwrite("pics/testing/cropped_l_mirror.jpg", cropped_l_mirror)
-        cv2.imwrite("pics/testing/cropped_r_mirror.jpg", cropped_r_mirror)
+        # draw_lines(frame, coords=None, color=[255,0,0], LSD=cropped_road_lines)
+        # draw_lines(frame, coords=None, color=[255,0,0], LSD=cropped_l_mirror_lines)
+        # draw_lines(frame, coords=None, color=[255,0,0], LSD=cropped_r_mirror_lines)
+
+        #this draws outline of ROI
+        draw_vertices(frame,vertices)
+
+        cv2.imwrite("pics/testing/output.jpg", frame)
+        # cv2.imwrite("pics/testing/cropped_l_mirror.jpg", cropped_l_mirror)
+        # cv2.imwrite("pics/testing/cropped_r_mirror.jpg", cropped_r_mirror)
 
         #draw_lines(frame, coords=None, color=[255,0,0], LSD=road_lines)
 
@@ -506,9 +458,8 @@ TODO:
 # show_canny = False
 
 
-runtime = 'PICTURE'          #  Can be 'VIDEO' or 'GAME' or "PICTURE"
+runtime = 'VIDEO'          #  Can be 'VIDEO' or 'GAME' or "PICTURE"
 lineDetectionType = 'LSD'  #  Can be 'LSD' or 'Hough'
 
-is_ROI_boundary()
 
 main(runtime, lineDetectionType)
